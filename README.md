@@ -7,7 +7,7 @@ c)	jail and prison churn.
 
 We used a Susceptible-Infected-Recovered (SIR) model to illustrate the high level dynamics of the disease spread (rather than projecting precise case numbers in an actual city).
 
-Please refer to the Center for Policing Equity COVID-19 Modeling Project documentation for further details about our modeling choices. 
+Please refer to the [Center for Policing Equity COVID-19 Modeling Project documentation](https://policingequity.org/what-we-do/research/covid-19-modeling-project) for further details about our modeling choices. 
 
 ## Directories
 
