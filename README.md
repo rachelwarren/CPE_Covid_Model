@@ -15,5 +15,5 @@ Please refer to the [Center for Policing Equity COVID-19 Modeling Project docume
 * **input**: Find the contact matrices and initial subpopulation group sizes as spreadsheets; these are necessary inputs into our model.
 
 ## Running The Code
-The code can notebook Model.ipynb can be run through jupyter notebooks. It is written in python3 and depends only on pandas, numpy and matplotilib.
+The code notebook Model.ipynb can be run through jupyter notebooks. It is written in python3 and depends only on pandas, numpy and matplotilib.
 
