@@ -1,2 +1,0 @@
-This is a test to see if I can now push correctly and to see if my 
-credentials are stored properly.
