@@ -473,4 +473,38 @@ actual_sip = pd.read_csv('/Users/rachelwarren/projects/CPE_Covid_Model/input2/ac
 #         if np.round(x, 2) != np.round(y, 2):
 #             print(f'     {index}, {col}: {x} != {y}')
 
+#### POLICY INTERVENTIONS ####
+## Policy lever 1: reduce police patrol of misdemeanors ##
+# TODO: Reduce police contacts w/ non-police by factor when lockdown begins and reduce
+# jail releases by a factor(change group size matrix)
+POLICE_CONTACT_SHRINK = 0.5
+POLICE_CONTACTS_TO_SHRINK = ['White_Forced_Labour_At_Work', 'White_Forced_Labour_At_Home',
+                             'White', 'White_Prison', 'Black_Forced_Labour_At_Work',
+                             'Black_Forced_Labour_At_Home', 'Black', 'Black_Prison']
+JAIL_OF_CORRECTIONS = 0.5 # fraction of jail/prison releases that are jail releases
+JAIL_RELEASE_SHRINK = 0.4
+
+contact_matrix_p1 = contact_matrix_sip
+contact_matrix_p1.loc[['White_Police_At_Work', 'Black_Police_At_Work'], 
+                          POLICE_CONTACTS_TO_SHRINK] = contact_matrix_p1.loc[[
+        'White_Police_At_Work', 'Black_Police_At_Work'], POLICE_CONTACTS_TO_SHRINK]*POLICE_CONTACT_SHRINK
+
+group_df_p1 = group_df
+group_df_p1.loc[['White_Prison', 'Black_Prison'], 
+                'Group_Size'] = group_df_p1.loc[['White_Prison', 'Black_Prison'],
+                                               'Group_Size']*(1-(JAIL_OF_CORRECTIONS*JAIL_RELEASE_SHRINK))
+# In Model Runs, will want to use contact_matrix_p1 as post-SIP matrix. After
+# 14 days (after lockdown?), will want to use group_df_p1
+
+## Policy lever 2: Alter prison release strategy ##
+# TODO: Change number of people who are released each day who are COVID-positive
+COVID_POSITIVE_OF_CORRECTIONS = 0 # in the future, we can make this a fraction
+
+contact_matrix_p2 = contact_matrix_sip
+contact_matrix_p2[['White_Prison', 'Black_Prison']] = contact_matrix_p2[['White_Prison',
+                 'Black_Prison']]*COVID_POSITIVE_OF_CORRECTIONS
+# In Model Runs, will want to use contact_matrix_p2 as post-SIP matrix; will
+# eventually want to consider ramping up/down (however you want to view it) to
+# this fraction of positive cases
+
 
