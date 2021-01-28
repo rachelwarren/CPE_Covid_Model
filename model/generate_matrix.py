@@ -494,7 +494,7 @@ group_df_p1.loc[['White_Prison', 'Black_Prison'],
                 'Group_Size'] = group_df_p1.loc[['White_Prison', 'Black_Prison'],
                                                'Group_Size']*(1-(JAIL_OF_CORRECTIONS*JAIL_RELEASE_SHRINK))
 # In Model Runs, will want to use contact_matrix_p1 as post-SIP matrix. After
-# 14 days (after lockdown?), will want to use group_df_p1
+# 14 days (after lockdown?), will want to use Group_Size column from group_df_p1
 
 ## Policy lever 2: Alter prison release strategy ##
 # TODO: Change number of people who are released each day who are COVID-positive
