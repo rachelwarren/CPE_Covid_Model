@@ -20,8 +20,7 @@ def process_group_size(group_size_data, initial_multiplier):
     group_size_data.loc['White_Prison', 'Recovery_Rate'] = 0.0 
     #set so people in prisons don't recover 
     group_size_data.loc['Black_Prison', 'Recovery_Rate'] = 0.0 
-    group_size_data['Initial_Infection_Rate'] =\
-        group_size_data['Initial_Infection_Rate'] * initial_multiplier
+    group_size_data['Initial_Infection_Rate'] = group_size_data['Initial_Infection_Rate'] * initial_multiplier
     group_size_data.loc['White_Prison', 'Initial_Infection_Rate'] = 0.0 #set prision start rate
     group_size_data.loc['Black_Prison', 'Initial_Infection_Rate'] = 0.0
     return group_size_data[['Population_Size', 'Initial_Infection_Rate', 'Recovery_Rate']]
