@@ -151,7 +151,7 @@ def build_model(group_size_data, TIME, SIP_DATE, contact_matrix1, contact_matrix
     for i in range(0, TIME):
         
         if i == SIP_DATE - 1:
-            lambda_matrix = contact_matrix2 * transmission_rate 
+            lambda_matrix = contact_matrix2 * transmission_rate
         
         # multiplying k*k contact matrix * k*1 vetor of proportion of group infected
         #l is a vector with length k 
@@ -178,6 +178,7 @@ def build_model(group_size_data, TIME, SIP_DATE, contact_matrix1, contact_matrix
             I_t[black_prison_i] = np.exp(i*k2)
             S_t[white_prison_i] = Group_Size[white_prison_i] - np.exp(i*k1)
             dSdt[black_prison_i] = Group_Size[black_prison_i] - np.exp(i*k2)
+            # Should this be S_t?
         
         susceptible_rows.append(S_t)
         infected_rows.append(I_t)

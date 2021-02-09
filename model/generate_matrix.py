@@ -484,8 +484,52 @@ actual_sip = pd.read_csv('/Users/rachelwarren/projects/CPE_Covid_Model/input2/ac
 #         if np.round(x, 2) != np.round(y, 2):
 #             print(f'     {index}, {col}: {x} != {y}')
 
+#### POLICY INTERVENTIONS ####
+## Policy lever 1: reduce police patrol of misdemeanors ##
+# TODO: Reduce police contacts w/ non-police by factor when lockdown begins and reduce
+# jail releases by a factor(change group size matrix)
+POLICE_CONTACT_SHRINK = 0.5
+POLICE_CONTACTS_TO_SHRINK = ['White_Forced_Labour_At_Work', 'White_Forced_Labour_At_Home',
+                             'White', 'White_Prison', 'Black_Forced_Labour_At_Work',
+                             'Black_Forced_Labour_At_Home', 'Black', 'Black_Prison']
+JAIL_OF_CORRECTIONS = 0.5 # fraction of jail/prison releases that are jail releases
+JAIL_RELEASE_SHRINK = 0.4
 
+def write_matrices_p1():
+    contact_matrix_p1 = contact_matrix_sip
+    contact_matrix_p1.loc[['White_Police_At_Work', 'Black_Police_At_Work'], 
+                          POLICE_CONTACTS_TO_SHRINK] = contact_matrix_p1.loc[[
+        'White_Police_At_Work', 'Black_Police_At_Work'], POLICE_CONTACTS_TO_SHRINK]*POLICE_CONTACT_SHRINK
 
+    group_df_p1 = group_df
+    group_df_p1.loc[['White_Prison', 'Black_Prison'], 
+                'Group_Size'] = group_df_p1.loc[['White_Prison', 'Black_Prison'],
+                                               'Group_Size']*(1-(JAIL_OF_CORRECTIONS*JAIL_RELEASE_SHRINK))
+    ### Rachel, does this look ok?
+    group_df_p1_to_save = group_df_p1.groupby('Group_Name').agg(
+            Population_Proportion=('Group_Size', 'sum'))
+    group_df_p1_to_save['Population_Size'] = group_df_p1_to_save * SYNTHETIC_CITY_SIZE
+    init_infections_p1 = 1/group_df_p1_to_save.loc['Black_Forced_Labour', 'Population_Size']
+    group_df_p1_to_save['Initial_Infection_Rate'] = init_infections_p1
+    group_df_p1_to_save['Initial_Infections'] = group_df_p1_to_save['Population_Size'] * group_df_p1_to_save['Initial_Infection_Rate']
+
+    # In Model Runs, will want to use contact_matrix_p1 as post-SIP matrix. After
+    # 14 days (after lockdown?), will want to use Group_Size column from group_df_p1
+    group_df_p1_to_save.to_csv(f'{BASE_PATH}/GROUP_SIZE_P1.csv')
+    contact_matrix_p1.to_csv(f'{BASE_PATH}/CONTACT_MATRIX_POST_SIP_P1.csv')
+
+## Policy lever 2: Alter prison release strategy ##
+# TODO: Change number of people who are released each day who are COVID-positive
+COVID_POSITIVE_OF_CORRECTIONS = 0 # in the future, we can make this a fraction
+
+def write_matrices_p2():
+    contact_matrix_p2 = contact_matrix_sip
+    contact_matrix_p2[['White_Prison', 'Black_Prison']] = contact_matrix_p2[['White_Prison',
+                 'Black_Prison']]*COVID_POSITIVE_OF_CORRECTIONS
+    contact_matrix_p2.to_csv(f'{BASE_PATH}/CONTACT_MATRIX_POST_SIP_P2.csv')
+# In Model Runs, will want to use contact_matrix_p2 as post-SIP matrix; will
+# eventually want to consider ramping up/down (however you want to view it) to
+# this fraction of positive cases
 
 def write_matrices():
     group_df_to_save.to_csv(GROUP_SIZE_MATRIX)
