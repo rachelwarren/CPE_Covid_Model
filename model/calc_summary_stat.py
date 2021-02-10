@@ -72,6 +72,8 @@ def calculate_peak_infections(S, I, pop_size, name, base_dir, days_peak_original
     cum_total_40_days = cumulative_df[columns].iloc[40]
     cum_rate_40_days = cum_total_40_days/new_sizes
     
+    cum_total_100_days = cumulative_df[columns].iloc[120]
+    
     #before peak
     cum_before = cumulative_df[columns].iloc[before_peak_day]
     cum_rate_before = cum_before/new_sizes
@@ -99,6 +101,8 @@ def calculate_peak_infections(S, I, pop_size, name, base_dir, days_peak_original
                         'active_rate_after_peak': active_rate_after,
                         'cumulative_after_peak': cum_after,
                         'cumulative_rate_after_peak': cum_rate_after
+                        'cumulative_infected_120_days': np.round(cum_total_100_days),
+                        'cumulative_rate_120_days': np.round(cum_total_100_days/new_sizes)
                      })
     df['model_name'] = name
     active_df = I[columns].add_prefix('active_')

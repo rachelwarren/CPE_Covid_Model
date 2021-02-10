@@ -169,7 +169,7 @@ post_lockdown_matrix: same keys, values are post lockdown matrix
 group_size_matrix: same keys, values are the series with the group sizes 
 
 """
-def create_matrix(pre_lockdown, post_lockdown, group_size, eq_group_size):
+def create_matrix_eq(pre_lockdown, post_lockdown, group_size, eq_group_size):
     pre_lockdown_matrix = {}
     post_lockdown_matrix = {}
     
@@ -246,5 +246,77 @@ def create_matrix(pre_lockdown, post_lockdown, group_size, eq_group_size):
     pre_lockdown_matrix['eq_police_prison_fl'] = equalized_contacts_pre_SIP
     post_lockdown_matrix['eq_police_prison_fl'] = equalized_contacts
     group_size_matrix['eq_police_prison_fl'] = eq_group_size
+
+    return pre_lockdown_matrix, post_lockdown_matrix, group_size_matrix
+
+
+"""
+Create pre- and post-shelter-in-place order contact matrices and equalized 
+group_size_matrices for various scenarios. NOT including the equalized group matrices
+
+params
+------
+pre_lockdown: the pre-SIP order contact matrix
+
+post_lockdown: the post-SIP order contact matrix
+
+group_size: the original group_size matrix
+
+
+returns
+-------
+pre_lockdown_matrix: a dictionary keyed by the scenario, with vales as the pre-
+lockdown matrix
+
+post_lockdown_matrix: same keys, values are post lockdown matrix 
+
+group_size_matrix: same keys, values are the series with the group sizes 
+
+"""
+def create_matrix(pre_lockdown, post_lockdown, group_size):
+    pre_lockdown_matrix = {}
+    post_lockdown_matrix = {}
+    
+    group_size_matrix = {}
+
+    #No police only
+    without_police_contact_p_SIP = no_police_contact(pre_lockdown)
+    without_police_contact = no_police_contact(post_lockdown)
+    
+    pre_lockdown_matrix['no_police'] = without_police_contact_p_SIP
+    post_lockdown_matrix['no_police'] = without_police_contact
+   
+    #No jail/prison only
+    without_prison_churn_p_SIP = no_prison_churn(pre_lockdown)
+    without_prison_churn = no_prison_churn(post_lockdown)
+    
+    
+    pre_lockdown_matrix['no_prison'] = without_prison_churn_p_SIP
+    post_lockdown_matrix['no_prison'] = without_prison_churn
+    
+    #No police AND no jail/prison
+    without_prison_churn_or_police_p_SIP = no_prison_churn(without_police_contact_p_SIP)
+    without_prison_churn_or_police = no_prison_churn(without_police_contact)
+    
+    
+    pre_lockdown_matrix['no_prison_or_police'] = without_prison_churn_or_police_p_SIP
+    post_lockdown_matrix['no_prison_or_police'] = without_prison_churn_or_police
+    
+   
+    for k in pre_lockdown_matrix.keys():
+        group_size_matrix[k] = group_size
+    
+    no_forced_labour_df = no_forced_labour(group_size)
+     
+    #No essential workers only (adding this back in) --> diff group size but 
+    #same as original contact matrix
+    pre_lockdown_matrix['no_forced_labour'] = drop_forced_labour(pre_lockdown)
+    post_lockdown_matrix['no_forced_labour'] = drop_forced_labour(post_lockdown)
+    group_size_matrix['no_forced_labour'] = no_forced_labour_df
+    
+    #No police AND no jail/prison AND no essential workers
+    pre_lockdown_matrix['no_police_prison_fl'] = drop_forced_labour(without_police_contact_p_SIP)
+    post_lockdown_matrix['no_police_prison_fl'] = drop_forced_labour(without_police_contact)
+    group_size_matrix['no_police_prison_fl'] = no_forced_labour_df
 
     return pre_lockdown_matrix, post_lockdown_matrix, group_size_matrix

@@ -145,14 +145,11 @@ def run_models_p1(base_dir, params, days,
     #conctact_matrix_list 
     cm_pre = []
     cm_post = []
-  
-
     pre_lockdown, post_lockdown, group_size_ls = mod.create_matrix(contact_data_pre_SIP,
                                                                contact_data_post_SIP,
                                                                group_size_data,
                                                                eq_group_size_data)
     #NOTE: DO WE NEED TO MODIFY ABOVE CODE FOR GROUP_SIZE_P1? 
-    
     infection_rates = []
     pop_sizes = {}
     
@@ -173,35 +170,10 @@ def run_models_p1(base_dir, params, days,
     summary_stats_original = summ.calculate_peak_infections(S_df, I_df, pop_size, "original", output_path)
     peak_days_original = summary_stats_original.loc['Total_w_Police', 'days_peak']
     I_df['model_name'] = 'original'
+    I_df['policy'] = 'policy1'
     I_df['name'] = output_name
     infection_rates.append(I_df)
-    
-    for model_name in pre_lockdown.keys():
-        
-        pre_contact = pre_lockdown[model_name]
-        post_contact = post_lockdown[model_name]
-        size_df = group_size_ls[model_name]
-                   
-        cm_pre.append(prep.add_contact_matrix(contact_data_pre_SIP, output_name, model_name))
-        cm_post.append(prep.add_contact_matrix(contact_data_post_SIP, output_name, model_name))  
-        
-        S_df2, I_df2, _ = build_model_p1(size_df, days,
-                                      params.sip_start_date,
-                                      pre_contact.values,
-                                      post_contact.values,
-                                      params.transmission_rate,
-                                      params.prison_infection_rate,
-                                      prison_peak_date, group_size_p1,
-                                      jail_release_date)
-        pop_size = prep.combine_groups(size_df)
-        summary_stats = summ.calculate_peak_infections(S_df2, I_df2, pop_size, model_name,
-                                                  output_path, peak_days_original)
-        I_df2['model_name'] = model_name
-        I_df2['name'] = output_name
-        infection_rates.append(I_df2)
-        pop_sizes[model_name] = pop_size
-        summary_stats_original = summary_stats_original.append(summary_stats)
-        
+   
     #Turn map of population sizes into data frame 
     pop_series = [values.rename(k) for k, values in pop_sizes.items()]
     pop_size_df = pd.concat(pop_series, axis = 1).transpose()

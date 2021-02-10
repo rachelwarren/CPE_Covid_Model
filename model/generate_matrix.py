@@ -2,17 +2,14 @@ import pandas as pd
 import numpy as np
 
 
-# expanded matrix
-import os
 
-BASE_PATH = '../input2'
-if not os.path.exists(BASE_PATH):
-    os.mkdir(BASE_PATH)
-CONTACT_MATRIX_PRE_SIP = f'{BASE_PATH}/CONTACT_MATRIX_PRE_SIP.csv'
-GROUP_SIZE_MATRIX = f'{BASE_PATH}/GROUP_SIZE.csv'
-CONTACT_MATRIX_POST_SIP = f'{BASE_PATH}/CONTACT_MATRIX_POST_SIP.csv'
-CONTACT_MATRIX_PRE_SIP_EXPANDED = f'{BASE_PATH}/contact_matrix_expanded_pre_sip.csv'
-CONTACT_MATRIX_POST_SIP_EXPANDED = f'{BASE_PATH}/contact_matrix_expanded_post_sip.csv'
+import os
+CONTACT_MATRIX_PRE_SIP = f'CONTACT_MATRIX_PRE_SIP.csv'
+GROUP_SIZE_MATRIX = f'GROUP_SIZE.csv'
+GROUP_SIZE_PRISON_MATRIX = 'GROUP_SIZE_P1.csv' #second group size matrix used in the first policy intervention
+CONTACT_MATRIX_POST_SIP = f'CONTACT_MATRIX_POST_SIP.csv'
+CONTACT_MATRIX_PRE_SIP_EXPANDED = f'contact_matrix_expanded_pre_sip.csv'
+CONTACT_MATRIX_POST_SIP_EXPANDED = f'contact_matrix_expanded_post_sip.csv'
 SYNTHETIC_CITY_SIZE = 5*np.power(10, 6)
 ls = []
 for race in ['White', 'Black']:
@@ -263,22 +260,22 @@ def fill_in_police_job_contacts(m, g_df):
     # police at home also contact police at work, so adding police into this.
     for person in g_df.index.values:
         time = g_df.loc[person, 'Home_Hours'] / WEEKLY_WAKING_HOURS
-        print(f'{person} --> {time}')
+
         if person in w_neighborhood.index.values:
             prop = w_neighborhood.loc[person, 'hours_prop']
             m.loc['White_Police_At_Work', person] = white_police_contacts_with_whites * prop
             m.loc['Black_Police_At_Work', person] = black_police_contacts_with_whites * prop
             # HELP!!! These numbers seem not to match up with what the google sheet has
-            m.loc[person, 'White_Police_At_Work'] = whites_contact_with_white_police * prop
-            m.loc[person, 'Black_Police_At_Work'] = whites_contact_with_black_police * prop
+            m.loc[person, 'White_Police_At_Work'] = whites_contact_with_white_police * time
+            m.loc[person, 'Black_Police_At_Work'] = whites_contact_with_black_police * time
 
         if person in b_neighborhood.index.values:
             prop = b_neighborhood.loc[person, 'hours_prop']
             m.loc['White_Police_At_Work', person] = white_police_contacts_with_blacks * prop
             m.loc['Black_Police_At_Work', person] = black_police_contacts_with_blacks * prop
             # HELP!!! These numbers seem not to match up with what the google sheet has
-            m.loc[person, 'White_Police_At_Work'] = blacks_contact_with_white_police * prop
-            m.loc[person, 'Black_Police_At_Work'] = blacks_contact_with_black_police * prop
+            m.loc[person, 'White_Police_At_Work'] = blacks_contact_with_white_police * time
+            m.loc[person, 'Black_Police_At_Work'] = blacks_contact_with_black_police * time
 
     m.loc['White_Police_At_Work', 'White_Police_At_Work'] = \
         (MAX_OCCUPATION_INFECTION_NUMBER - white_police_contacts_with_whites - white_police_contacts_with_blacks) * white_of_black_white_police  # E37-B41-B44 * B28
@@ -299,7 +296,6 @@ contact_matrix_pre_sip = fill_in_police_job_contacts(contact_matrix_pre_sip, gro
 # at some point we should put the calculations to get here in the spreadsheet
 WHITE_RELEASE_RATE = 0.00007130892426
 BLACK_RELEASE_RATE = 0.0002163545656
-
 
 def fill_in_prison_contacts(m, my_group_df, is_post=False):
     # These are in the spread sheet but don't know where they are used
@@ -331,7 +327,6 @@ def fill_in_prison_contacts(m, my_group_df, is_post=False):
     m.loc['Black_Police_At_Work', 'White_Prison'] = white_release_rate_delay * black_police_contacts_with_whites
     return m
 
-
 contact_matrix_pre_sip = fill_in_prison_contacts(contact_matrix_pre_sip, group_df)
 
 
@@ -346,10 +341,16 @@ def fill_in_home_contacts(m, g_df):
             target_contacts = g_df.loc[a, 'Target_Contacts']
             if g_df.loc[a, 'Race'] == 'Black':
                 for b in black_neighborhood.index.values:
+                   
                     m.loc[a, b] = black_neighborhood.loc[b, 'hours_prop'] * target_contacts
             else:
                 for w in white_neighborhood.index.values:
                     m.loc[a, w] = white_neighborhood.loc[w, 'hours_prop'] * target_contacts
+    for po in ['Black_Police_At_Work', 'White_Police_At_Work']:
+        m.loc['Black_Police_At_Home', po] = 0.0 #Off duty officers don't get arrested
+        m.loc['White_Police_At_Home', po] = 0.0 #Off duty officers don't get arrested
+        m.loc[po, 'Black_Police_At_Home'] = 0.0 #Off duty officers don't get arrested
+        m.loc[po, 'White_Police_At_Home'] = 0.0
     return m
 
 
@@ -376,6 +377,7 @@ def create_final_matrix(m):
 
     new = new.drop(['White_Non_Working', 'Black_Non_Working'])
     new = new.drop(['White_Non_Working', 'Black_Non_Working'], axis=1)
+        
     name_dict = group_df[group_df['Labour_Type'] != 'Non_Working']['Group_Name'].to_dict()
     new = new.rename(index=name_dict).reset_index()
     new = new.groupby('i').sum()
@@ -385,24 +387,6 @@ def create_final_matrix(m):
         new[v] = new[columns].sum(axis=1)  # row sum
     group_names = list(set(group_df['Group_Name'].values))
     return new[group_names].reset_index().rename(columns = {'i': 'Group_Name'})
-
-contact_matrix_pre_sip.to_csv(CONTACT_MATRIX_PRE_SIP_EXPANDED)
-actual = pd.read_csv('/Users/rachelwarren/projects/CPE_Covid_Model/input2/actual_pre_contact_expanded.csv',
-                     sep='\t', lineterminator='\n', index_col='Groups')
-
-contact_matrix_pre_sip_final = create_final_matrix(contact_matrix_pre_sip)
-
-# ++++++++++++++++++++++
-# identify where code diverges from spread sheet
-# +++++++++++++++++++++
-print("Verifying Pre SIP Matrix ++++++++++++++++++++++++++++++++++++++++++")
-for index, row in actual.iterrows():
-    print(f'checking row {index}')
-    for col in actual.columns:
-        x = row[col]
-        y = contact_matrix_pre_sip.loc[index, col]
-        if np.round(x, 2) != np.round(y, 2):
-            print(f'     {index}, {col}: {x} != {y}')
 
 
 ### BEGIN POST SIP CONTACT MATRIX CREATION
@@ -425,12 +409,9 @@ group_df_sip['labour_type_contact_rate'] = group_df_sip['Labour_Type'].apply(
 
 group_df_sip['Target_Contacts'] = (group_df_sip['Home_Hours'] / WEEKLY_WAKING_HOURS) * social_distancing_contact_rate + group_df_sip[
     'labour_type_contact_rate'] * group_df_sip['Working_Hours'] / WEEKLY_WAKING_HOURS
-#print(group_df_sip[['Home_Hours', 'Working_Hours', 'labour_type_contact_rate', 'Target_Contacts']])
 
 group_df_sip['Race_Home_Hours'] = group_df_sip['Home_Hours'] * group_df_sip['Proportion_of_Racial_Group']
 group_df_sip['Race_Work_Hours'] = group_df_sip['Working_Hours'] * group_df_sip['Proportion_of_Racial_Group']
-
-#print(group_df_sip[['Home_Hours', 'Working_Hours', 'labour_type_contact_rate', 'Target_Contacts']])
 
 # Create post-SIP contact matrix
 contact_matrix_sip = group_df_sip[[]]
@@ -449,58 +430,79 @@ contact_matrix_sip = fill_in_prison_contacts(contact_matrix_sip, group_df_sip, i
 # Fill in home contacts
 contact_matrix_sip = fill_in_home_contacts(contact_matrix_sip, group_df_sip)
 
-#Collapse non-working and non-essential; need to sum these columns for each race, but not the rows
+contact_matrix_pre_sip_final = create_final_matrix(contact_matrix_pre_sip)
 contact_matrix_sip_final = create_final_matrix(contact_matrix_sip)
-#print(group_df_sip)
-contact_matrix_sip_final.to_csv(CONTACT_MATRIX_POST_SIP)
 
-
-contact_matrix_sip = contact_matrix_sip.rename(index={'White_Non_Working': 'White',
-                                                      'Black_Non_Working': 'Black'})
-contact_matrix_sip['White'] = contact_matrix_sip['White_Non_Working'] + contact_matrix_sip[
-    'White_Non_Essential_Labour_At_Home']
-contact_matrix_sip['Black'] = contact_matrix_sip['Black_Non_Working'] + contact_matrix_sip[
-    'Black_Non_Essential_Labour_At_Home']
-contact_matrix_sip = contact_matrix_sip.drop(
-    ['White_Non_Essential_Labour_At_Home', 'White_Non_Essential_Labour_At_Work',
-     'Black_Non_Essential_Labour_At_Home', 'Black_Non_Essential_Labour_At_Work'])
-contact_matrix_sip = contact_matrix_sip.drop(
-    ['White_Non_Working', 'White_Non_Essential_Labour_At_Home', 'White_Non_Essential_Labour_At_Work',
-     'Black_Non_Working', 'Black_Non_Essential_Labour_At_Home', 'Black_Non_Essential_Labour_At_Work'],
-    axis=1)
-
-actual_sip = pd.read_csv('/Users/rachelwarren/projects/CPE_Covid_Model/input2/actual_post_contact_expanded.csv',
-                     sep='\t', lineterminator='\n', index_col='Groups')
 
 # ++++++++++++++++++++++
 # identify where code diverges from spread sheet
 # +++++++++++++++++++++
-# print("Verifying Post SIP Matrix")
-# for index, row in actual_sip.iterrows():
-#     print(f'checking row {index}')
-#     for col in actual_sip.columns:
-#         x = row[col]
-#         y = contact_matrix_sip.loc[index, col]
-#         if np.round(x, 2) != np.round(y, 2):
-#             print(f'     {index}, {col}: {x} != {y}')
+def compare_to_spread_sheet():
+    def collapse(m):
+        
+        cm = m.rename(index={'White_Non_Working': 'White',
+                                                              'Black_Non_Working': 'Black'})
 
-#### POLICY INTERVENTIONS ####
-## Policy lever 1: reduce police patrol of misdemeanors ##
-# TODO: Reduce police contacts w/ non-police by factor when lockdown begins and reduce
-# jail releases by a factor(change group size matrix)
+        cm['White'] = cm['White_Non_Working'] + cm[
+            'White_Non_Essential_Labour_At_Home']
+        cm['Black'] = cm['Black_Non_Working'] + cm[
+            'Black_Non_Essential_Labour_At_Home']
+        cm = cm.drop(
+            ['White_Non_Essential_Labour_At_Home', 'White_Non_Essential_Labour_At_Work',
+             'Black_Non_Essential_Labour_At_Home', 'Black_Non_Essential_Labour_At_Work'])
+        cm = cm.drop(
+            ['White_Non_Working', 'White_Non_Essential_Labour_At_Home', 'White_Non_Essential_Labour_At_Work',
+             'Black_Non_Working', 'Black_Non_Essential_Labour_At_Home', 'Black_Non_Essential_Labour_At_Work'],
+            axis=1)
+        return cm
+    contact_matrix_sip_test = collapse(contact_matrix_sip)
+    contact_matrix_pre_sip_test = contact_matrix_pre_sip
+    actual_sip = pd.read_csv('/Users/rachelwarren/projects/CPE_Covid_Model/test_data/actual_post_contact_expanded.csv',
+                         sep='\t', lineterminator='\n', index_col='Groups')
+    print("Verifying Post SIP Matrix: spread_sheet --> code")
+    for index, row in actual_sip.iterrows():
+        print(f'checking row {index}')
+        for col in actual_sip.columns:
+            x = row[col]
+            y = contact_matrix_sip_test.loc[index, col]
+            if np.round(x, 2) != np.round(y, 2):
+                print(f'     {index}, {col}: {x} != {y}')
+
+    # ++++++++++++++++++++++
+    # identify where code diverges from spread sheet
+#     # +++++++++++++++++++++
+    actual = pd.read_csv(
+        '/Users/rachelwarren/projects/CPE_Covid_Model/test_data/actual_pre_contact_expanded.csv',
+                         sep='\t', lineterminator='\n', index_col='Groups')
+    print("Verifying Pre SIP Matrix ++++++++++++++++++++++++++++++++++++++++++")
+    for index, row in actual.iterrows():
+        print(f'checking row {index}')
+        for col in actual.columns:
+            x = row[col]
+            y = contact_matrix_pre_sip_test.loc[index, col]
+            if np.round(x, 2) != np.round(y, 2):
+                print(f'     {index}, {col}: {x} != {y}')
+
+def write_matrices(output_dir, group_size, pre_sip, post_sip):
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+    group_size.to_csv(os.path.join(output_dir, GROUP_SIZE_MATRIX))
+    pre_sip.to_csv(os.path.join(output_dir, CONTACT_MATRIX_PRE_SIP), index = False)
+    post_sip.to_csv(os.path.join(output_dir, CONTACT_MATRIX_POST_SIP), index = False)
+                      
 POLICE_CONTACT_SHRINK = 0.5
 POLICE_CONTACTS_TO_SHRINK = ['White_Forced_Labour_At_Work', 'White_Forced_Labour_At_Home',
-                             'White', 'White_Prison', 'Black_Forced_Labour_At_Work',
-                             'Black_Forced_Labour_At_Home', 'Black', 'Black_Prison']
+                              'White_Non_Working', 'White_Prison', 'Black_Forced_Labour_At_Work',
+                             'Black_Forced_Labour_At_Home', 'Black_Non_Working', 'Black_Prison']
 JAIL_OF_CORRECTIONS = 0.5 # fraction of jail/prison releases that are jail releases
 JAIL_RELEASE_SHRINK = 0.4
 
-def write_matrices_p1():
+def write_matrices_p1(path):
     contact_matrix_p1 = contact_matrix_sip
     contact_matrix_p1.loc[['White_Police_At_Work', 'Black_Police_At_Work'], 
                           POLICE_CONTACTS_TO_SHRINK] = contact_matrix_p1.loc[[
         'White_Police_At_Work', 'Black_Police_At_Work'], POLICE_CONTACTS_TO_SHRINK]*POLICE_CONTACT_SHRINK
-
+    p1_to_save = create_final_matrix(contact_matrix_p1)
     group_df_p1 = group_df
     group_df_p1.loc[['White_Prison', 'Black_Prison'], 
                 'Group_Size'] = group_df_p1.loc[['White_Prison', 'Black_Prison'],
@@ -512,26 +514,46 @@ def write_matrices_p1():
     init_infections_p1 = 1/group_df_p1_to_save.loc['Black_Forced_Labour', 'Population_Size']
     group_df_p1_to_save['Initial_Infection_Rate'] = init_infections_p1
     group_df_p1_to_save['Initial_Infections'] = group_df_p1_to_save['Population_Size'] * group_df_p1_to_save['Initial_Infection_Rate']
-
+    group_df_p1_to_save.to_csv(os.path.join(path, GROUP_SIZE_PRISON_MATRIX))
+    
     # In Model Runs, will want to use contact_matrix_p1 as post-SIP matrix. After
     # 14 days (after lockdown?), will want to use Group_Size column from group_df_p1
-    group_df_p1_to_save.to_csv(f'{BASE_PATH}/GROUP_SIZE_P1.csv')
-    contact_matrix_p1.to_csv(f'{BASE_PATH}/CONTACT_MATRIX_POST_SIP_P1.csv')
-
+    write_matrices(path, group_df_p1_to_save, contact_matrix_pre_sip_final, p1_to_save)
+    
 ## Policy lever 2: Alter prison release strategy ##
 # TODO: Change number of people who are released each day who are COVID-positive
 COVID_POSITIVE_OF_CORRECTIONS = 0 # in the future, we can make this a fraction
 
-def write_matrices_p2():
+def write_matrices_p2(path):
     contact_matrix_p2 = contact_matrix_sip
     contact_matrix_p2[['White_Prison', 'Black_Prison']] = contact_matrix_p2[['White_Prison',
                  'Black_Prison']]*COVID_POSITIVE_OF_CORRECTIONS
-    contact_matrix_p2.to_csv(f'{BASE_PATH}/CONTACT_MATRIX_POST_SIP_P2.csv')
+    write_matrices(path, group_df_to_save, contact_matrix_pre_sip_final, create_final_matrix(contact_matrix_p2))
+    
+
 # In Model Runs, will want to use contact_matrix_p2 as post-SIP matrix; will
 # eventually want to consider ramping up/down (however you want to view it) to
 # this fraction of positive cases
+BASE_PATH = '/Users/rachelwarren/projects/CPE_Covid_Model/input2'
 
-def write_matrices():
-    group_df_to_save.to_csv(GROUP_SIZE_MATRIX)
-    contact_matrix_pre_sip_final.to_csv(CONTACT_MATRIX_PRE_SIP)
-    contact_matrix_sip_final.to_csv(CONTACT_MATRIX_POST_SIP)
+ORIGINAL_FOLDER = 'no_policy'
+LEVER_1_FOLDER =  'lever1'
+LEVER_2_FOLDER = 'lever2'
+
+def write_all_matrices(BASE_PATH):
+    original_dir = os.path.join(BASE_PATH, ORIGINAL_FOLDER)
+    lever_1_dir = os.path.join(BASE_PATH, LEVER_1_FOLDER)
+    lever_2_dir = os.path.join(BASE_PATH, LEVER_2_FOLDER)
+    if not os.path.exists(BASE_PATH):
+        print(BASE_PATH)
+        os.mkdir(BASE_PATH)
+    
+    write_matrices(original_dir, group_df_to_save, contact_matrix_pre_sip_final, contact_matrix_sip_final)
+    write_matrices_p1(lever_1_dir)
+    write_matrices_p2(lever_2_dir)
+    return original_dir, lever_1_dir, lever_2_dir
+
+    
+
+
+
