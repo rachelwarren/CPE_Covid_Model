@@ -274,7 +274,8 @@ def fill_in_police_job_contacts(m, g_df):
             m.loc['White_Police_At_Work', person] = white_police_contacts_with_blacks * prop
             m.loc['Black_Police_At_Work', person] = black_police_contacts_with_blacks * prop
             # HELP!!! These numbers seem not to match up with what the google sheet has
-            m.loc[person, 'White_Police_At_Work'] = blacks_contact_with_white_police * time
+            m.loc[person, 'White_Police_At_Work'] = blacks_contact_with_white_police * time 
+            # Bug in spread sheet where we didn't cal whites correctly won't quite match
             m.loc[person, 'Black_Police_At_Work'] = blacks_contact_with_black_police * time
 
     m.loc['White_Police_At_Work', 'White_Police_At_Work'] = \
@@ -466,6 +467,7 @@ def compare_to_spread_sheet():
             x = row[col]
             y = contact_matrix_sip_test.loc[index, col]
             if np.round(x, 2) != np.round(y, 2):
+            #if ('forced_labour' in col) & ('forced_labour') in index
                 print(f'     {index}, {col}: {x} != {y}')
 
     # ++++++++++++++++++++++
@@ -481,6 +483,7 @@ def compare_to_spread_sheet():
             x = row[col]
             y = contact_matrix_pre_sip_test.loc[index, col]
             if np.round(x, 2) != np.round(y, 2):
+            #if ('forced_labour' in col) & ('forced_labour') in index
                 print(f'     {index}, {col}: {x} != {y}')
 
 def write_matrices(output_dir, group_size, pre_sip, post_sip):
@@ -547,6 +550,12 @@ def write_all_matrices(BASE_PATH):
     if not os.path.exists(BASE_PATH):
         print(BASE_PATH)
         os.mkdir(BASE_PATH)
+        
+    if not os.path.exists(lever_1_dir):
+        os.mkdir(lever_1_dir)
+    if not os.path.exists(lever_2_dir):
+        os.mkdir(lever_2_dir)
+        
     
     write_matrices(original_dir, group_df_to_save, contact_matrix_pre_sip_final, contact_matrix_sip_final)
     write_matrices_p1(lever_1_dir)

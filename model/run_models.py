@@ -123,7 +123,8 @@ def run_models(output_dir, params, days,
         
     return summary_stats_original, pd.concat(infection_rates), pd.concat(s_rates), pop_size_df
 
-
+# Run the policy interventions. Has if statement for both kinds of policies.
+# If the optional params are included is policy lever 1. 
 def run_policy_intervention(policy_name,
     output_dir, params, days,
     group_size_data,
