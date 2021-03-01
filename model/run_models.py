@@ -129,8 +129,10 @@ def run_policy_intervention(policy_name,
     output_dir, params, days,
     group_size_data,
     contact_data_pre_SIP, contact_data_post_SIP,
-    prison_peak_date,
-    group_size2 = None, prison_lockdown_date = None):
+    prison_peak_date,    
+    jail_release_shrink = None, jail_release_date = None, 
+    prison_sip_i_white = None, prison_sip_i_black = None,
+    jail_sip_i_white = None, jail_sip_i_black = None):
     
     output_name = policy_name
     output_path =os.path.join(output_dir, output_name)
@@ -141,16 +143,18 @@ def run_policy_intervention(policy_name,
     
     pop_sizes = {}
     
-    if group_size2 is None:
-        #run the original model
+    if jail_release_shrink is None:
+        # run lever 2
         print("policy_lever_2")
-        S_df, I_df, _ = build.build_model(group_size_data, days,
+        S_df, I_df, _ = build.build_model_p2(group_size_data, days,
                                     params.sip_start_date,
                                     contact_data_pre_SIP.values,
                                     contact_data_post_SIP.values,
                                     params.transmission_rate,
                                     params.prison_infection_rate, 
-                                    prison_peak_date)
+                                    prison_peak_date, prison_sip_i_white,
+                                    prison_sip_i_black, jail_sip_i_white,
+                                    jail_sip_i_black)
     else:
         print("policy_lever_1")
         S_df, I_df, _ = build.build_model_p1(
@@ -160,7 +164,7 @@ def run_policy_intervention(policy_name,
             contact_data_post_SIP.values,
             params.transmission_rate, params.prison_infection_rate,
             prison_peak_date,
-            group_size2, prison_lockdown_date)
+            jail_release_shrink, jail_release_date)
         
     pop_sizes[f'{policy_name}_original'] = pop_size
          
