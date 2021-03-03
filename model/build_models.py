@@ -87,7 +87,7 @@ number of days after the SIP_DATE.
 """
 def build_model_p1(group_size_data, TIME, SIP_DATE, contact_matrix1, contact_matrix2,
                 transmission_rate, prison_peak_rate, prison_peak_date, group_size_p1,
-                jail_release_date):
+                jail_release_date, post_sip_transmission):
     
     Group_Names, Group_Size, initial_sizes, recovery_rates = build_initial_values(group_size_data)
     
@@ -112,7 +112,7 @@ def build_model_p1(group_size_data, TIME, SIP_DATE, contact_matrix1, contact_mat
     for i in range(0, TIME):
         
         if i == SIP_DATE - 1:
-            lambda_matrix = contact_matrix2 * transmission_rate
+            lambda_matrix = contact_matrix2 * post_sip_transmission
             
         if i == jail_release_date - 1:
             Group_Size = group_size_p1['Population_Size'].values
@@ -210,15 +210,15 @@ Note: the sum of cells in each corresponding cell in the three DataFrames is the
 number of total people in that group. 
 """
 
-def build_model(group_size_data, TIME, SIP_DATE, contact_matrix1, contact_matrix2,
-                transmission_rate, prison_peak_rate, prison_peak_date):
+def build_model(group_size_data, TIME, contact_matrix1, contact_matrix2,
+                params):
     
     Group_Names, Group_Size, initial_sizes, recovery_rates = build_initial_values(group_size_data)
     
     susceptible_rows = []
     infected_rows = []
     recovered_rows = []
-    lambda_matrix = contact_matrix1 * transmission_rate
+    lambda_matrix = contact_matrix1 * params.transmission_rate
  
     S_t, I_t, R_t = initial_sizes
     susceptible_rows.append(S_t)
@@ -229,14 +229,15 @@ def build_model(group_size_data, TIME, SIP_DATE, contact_matrix1, contact_matrix
     black_prison_i = np.where(Group_Names == 'Black_Prison')
     
     k1, k2 = prison_rate_build(
-        Group_Size, prison_peak_date, white_prison_i, black_prison_i, prison_peak_rate)
+        Group_Size, params.prison_peak_date, 
+        white_prison_i, black_prison_i,params.prison_infection_rate)
   
     #represents new infections per day
     delta_i = [R_t]
     for i in range(0, TIME):
         
-        if i == SIP_DATE - 1:
-            lambda_matrix = contact_matrix2 * transmission_rate
+        if i == params.sip_start_date - 1:
+            lambda_matrix = contact_matrix2 * params.post_sip_transmission_rate
         
         # multiplying k*k contact matrix * k*1 vetor of proportion of group infected
         #l is a vector with length k 
@@ -258,7 +259,7 @@ def build_model(group_size_data, TIME, SIP_DATE, contact_matrix1, contact_matrix
         I_t = I_t + dIdt
         R_t = R_t + dRdt
         
-        if i <= prison_peak_date:
+        if i <= params.prison_peak_date:
             I_t[white_prison_i] = np.exp(i*k1)
             I_t[black_prison_i] = np.exp(i*k2)
             S_t[white_prison_i] = Group_Size[white_prison_i] - np.exp(i*k1)

@@ -16,14 +16,19 @@ parameters
 """
 
 class ModelParams:
-    def __init__(self, transmission_rate,
-                   sip_start_date,
-                   initial_infection_multiplier,
-                   prison_infection_rate = None,
-                   police_contact_rate = None,
-                   police_group_size = None):
+    def __init__(self,transmission_rate, sip_start_date,initial_infection_multiplier,
+                 prison_peak_date, prison_infection_rate,
+                police_contact_rate = None,
+                 police_group_size = None,
+                 post_sip_t = None):
         self.transmission_rate = transmission_rate
+        if post_sip_t == None:
+            self.post_sip_transmission_rate = transmission_rate
+        else:
+            self.post_sip_transmission_rate = post_sip_t
+            
         self.sip_start_date = sip_start_date
+        self.prison_peak_date = prison_peak_date
         self.initial_infection_multiplier = initial_infection_multiplier
         self.prison_infection_rate = prison_infection_rate
         self.police_contact_rate = police_contact_rate

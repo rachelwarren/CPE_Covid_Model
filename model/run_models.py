@@ -45,8 +45,7 @@ pop_size_df: the population sizes used for inputs to each of the models
 def run_models(output_dir, params, days,
                group_size_data,
                contact_data_pre_SIP,
-               contact_data_post_SIP,
-               prison_peak_date):
+               contact_data_post_SIP):
     output_name = params.get_name()
     output_path =os.path.join(output_dir, output_name)
      
@@ -65,13 +64,11 @@ def run_models(output_dir, params, days,
     s_rates = []
     pop_sizes = {}
     #run the original model
-    S_df, I_df, _ = build.build_model(group_size_data, days,
-                                params.sip_start_date,
-                                contact_data_pre_SIP.values,
-                                contact_data_post_SIP.values,
-                                params.transmission_rate,
-                                params.prison_infection_rate, 
-                                prison_peak_date)
+    S_df, I_df, _ = build.build_model(
+        group_size_data, days, 
+        contact_data_pre_SIP.values,
+        contact_data_post_SIP.values, params)
+    
     pop_sizes['no_policy_original'] = pop_size
     
     cm_pre.append(prep.add_contact_matrix(contact_data_pre_SIP, output_name, 'original'))
@@ -95,13 +92,9 @@ def run_models(output_dir, params, days,
         cm_pre.append(prep.add_contact_matrix(contact_data_pre_SIP, output_name, model_name))
         cm_post.append(prep.add_contact_matrix(contact_data_post_SIP, output_name, model_name))  
         
-        S_df2, I_df2, _ = build.build_model(size_df, days,
-                                      params.sip_start_date,
-                                      pre_contact.values,
-                                      post_contact.values,
-                                      params.transmission_rate,
-                                      params.prison_infection_rate,
-                                      prison_peak_date)
+        S_df2, I_df2, _ = build.build_model(
+            size_df, days,
+            pre_contact.values, post_contact.values, params)
         pop_size = prep.combine_groups(size_df)
         summary_stats = summ.calculate_peak_infections(S_df2, I_df2, pop_size, model_name,
                                                   output_path, peak_days_original)
@@ -129,7 +122,6 @@ def run_policy_intervention(policy_name,
     output_dir, params, days,
     group_size_data,
     contact_data_pre_SIP, contact_data_post_SIP,
-    prison_peak_date,
     group_size2 = None, prison_lockdown_date = None):
     
     output_name = policy_name
@@ -144,13 +136,9 @@ def run_policy_intervention(policy_name,
     if group_size2 is None:
         #run the original model
         print("policy_lever_2")
-        S_df, I_df, _ = build.build_model(group_size_data, days,
-                                    params.sip_start_date,
-                                    contact_data_pre_SIP.values,
-                                    contact_data_post_SIP.values,
-                                    params.transmission_rate,
-                                    params.prison_infection_rate, 
-                                    prison_peak_date)
+        S_df, I_df, _ = build.build_model(
+            group_size_data, days,
+            contact_data_pre_SIP.values, contact_data_post_SIP.values, params)
     else:
         print("policy_lever_1")
         S_df, I_df, _ = build.build_model_p1(
@@ -159,8 +147,10 @@ def run_policy_intervention(policy_name,
             contact_data_pre_SIP.values,
             contact_data_post_SIP.values,
             params.transmission_rate, params.prison_infection_rate,
-            prison_peak_date,
-            group_size2, prison_lockdown_date)
+            params.prison_peak_date,
+            group_size2,
+            prison_lockdown_date,
+            params.post_sip_transmission_rate)
         
     pop_sizes[f'{policy_name}_original'] = pop_size
          
