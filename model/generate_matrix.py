@@ -179,28 +179,46 @@ group_df['Target_Contacts'] = (group_df['Home_Hours'] / WEEKLY_WAKING_HOURS) * n
     'labour_type_contact_rate'] * group_df['Working_Hours'] / WEEKLY_WAKING_HOURS
 group_df[['labour_type_contact_rate', 'Home_Hours', 'Target_Contacts']]
 
-def fill_in_working_groups(m, my_df, is_post):
+def fill_in_nonessential_working_groups(m, my_df):
     # for all workers, they contact only other workers at work.
     # Proportional to types of workers, to hit the total contacts.
     # no one contacts police at work
-    if not is_post:
-        worker_df = my_df[(my_df['Location'] == 'At_Work') & my_df['Labour_Type'].isin(
+    #NOTE: We only need to run this function on the pre-sip matrix
+    worker_df = my_df[(my_df['Location'] == 'At_Work') & my_df['Labour_Type'].isin(
             ['Forced_Labour', 'Non_Essential_Labour'])]
-    else:
-        worker_df = group_df_sip[
-            (my_df['Location'] == 'At_Work') & my_df['Labour_Type'].isin(['Forced_Labour'])]
+    noness_worker_df = my_df[(my_df['Location'] == 'At_Work') & my_df['Labour_Type'].isin(['Non_Essential_Labour'])]
     total_worker_size = worker_df['Group_Size'].sum()
     worker_proportion = (worker_df['Group_Size'] / total_worker_size)
-    for a in worker_df.index.values:
-        target_contacts = worker_df.loc[a, 'Target_Contacts']
+    for a in noness_worker_df.index.values:
+        target_contacts = noness_worker_df.loc[a, 'Target_Contacts']
         for b in worker_df.index.values:
             # if b is white non essential labour at work
             # then worker proportion is non essential labour / all working groups
             m.loc[a, b] = target_contacts * worker_proportion[b]
     return m
 
+def fill_in_essential_working_groups(m, my_df, is_post):
+    essential_worker_df = my_df[(my_df['Location'] == 'At_Work') & my_df['Labour_Type'].isin(['Forced_Labour'])]
+    noness_worker_df = my_df[(my_df['Location'] == 'At_Work') & my_df['Labour_Type'].isin(['Non_Essential_Labour'])]
+    total_essential_worker_size = essential_worker_df['Group_Size'].sum()
+    total_noness_worker_size = noness_worker_df['Group_Size'].sum()
+    essential_worker_proportion = (essential_worker_df['Group_Size']/total_essential_worker_size)
+    noness_worker_proportion = (noness_worker_df['Group_Size']/total_noness_worker_size)
+    for a in essential_worker_df.index.values:
+        target_contacts = essential_worker_df.loc[a, 'Target_Contacts']
+        for b in essential_worker_df.index.values:
+            m.loc[a, b] = (target_contacts/2) * essential_worker_proportion[b]
+        for c in noness_worker_df.index.values:
+            if not is_post:
+                m.loc[a, c] = (target_contacts/2) * noness_worker_proportion[c]
+            else:
+                m.loc[a, c] = 0
+    return m
 
-contact_matrix_pre_sip = fill_in_working_groups(contact_matrix_pre_sip, group_df, is_post=False)
+
+contact_matrix_pre_sip = fill_in_nonessential_working_groups(contact_matrix_pre_sip, group_df)
+contact_matrix_pre_sip = fill_in_essential_working_groups(
+    contact_matrix_pre_sip, group_df, is_post = False)
 
 white_of_black_white_police = WHITE_OF_POLICE / (WHITE_OF_POLICE + BLACK_OF_POLICE)
 black_of_black_white_police = BLACK_OF_POLICE / (WHITE_OF_POLICE + BLACK_OF_POLICE)
@@ -420,7 +438,7 @@ for g in group_df_sip.index.values:
     contact_matrix_sip[g] = 0.0
 
 # Fill in working groups: made modification to function above
-contact_matrix_sip = fill_in_working_groups(contact_matrix_sip, group_df_sip, is_post=True)
+contact_matrix_sip = fill_in_essential_working_groups(contact_matrix_sip, group_df_sip, is_post=True)
 
 # Fill in police job contacts
 contact_matrix_sip = fill_in_police_job_contacts(contact_matrix_sip, group_df_sip)
@@ -497,7 +515,8 @@ POLICE_CONTACT_SHRINK = 0.5
 POLICE_CONTACTS_TO_SHRINK = ['White_Forced_Labour_At_Work', 'White_Forced_Labour_At_Home',
                               'White_Non_Working', 'White_Prison', 'Black_Forced_Labour_At_Work',
                              'Black_Forced_Labour_At_Home', 'Black_Non_Working', 'Black_Prison']
-JAIL_OF_CORRECTIONS = 0.5 # fraction of jail/prison releases that are jail releases
+JAIL_OF_CORRECTIONS = 27296/(27296+1704) # fraction of jail/prison releases that are jail releases;
+# comes from Calculations tab, cells C24 and C27
 JAIL_RELEASE_SHRINK = 0.4
 
 def write_matrices_p1(path):
@@ -506,32 +525,34 @@ def write_matrices_p1(path):
                           POLICE_CONTACTS_TO_SHRINK] = contact_matrix_p1.loc[[
         'White_Police_At_Work', 'Black_Police_At_Work'], POLICE_CONTACTS_TO_SHRINK]*POLICE_CONTACT_SHRINK
     p1_to_save = create_final_matrix(contact_matrix_p1)
-    group_df_p1 = group_df
-    group_df_p1.loc[['White_Prison', 'Black_Prison'], 
-                'Group_Size'] = group_df_p1.loc[['White_Prison', 'Black_Prison'],
-                                               'Group_Size']*(1-(JAIL_OF_CORRECTIONS*JAIL_RELEASE_SHRINK))
-    ### Rachel, does this look ok?
-    group_df_p1_to_save = group_df_p1.groupby('Group_Name').agg(
-            Population_Proportion=('Group_Size', 'sum'))
-    group_df_p1_to_save['Population_Size'] = group_df_p1_to_save * SYNTHETIC_CITY_SIZE
-    init_infections_p1 = 1/group_df_p1_to_save.loc['Black_Forced_Labour', 'Population_Size']
-    group_df_p1_to_save['Initial_Infection_Rate'] = init_infections_p1
-    group_df_p1_to_save['Initial_Infections'] = group_df_p1_to_save['Population_Size'] * group_df_p1_to_save['Initial_Infection_Rate']
-    group_df_p1_to_save.to_csv(os.path.join(path, GROUP_SIZE_PRISON_MATRIX))
+    # 2/26: Don't need this since we are now decreasing jail size in build_model_p1
+    #group_df_p1 = group_df
+    #group_df_p1.loc[['White_Prison', 'Black_Prison'], 
+    #            'Group_Size'] = group_df_p1.loc[['White_Prison', 'Black_Prison'],
+    #                                           'Group_Size']*(1-(JAIL_OF_CORRECTIONS*JAIL_RELEASE_SHRINK))
+    #group_df_p1_to_save = group_df_p1.groupby('Group_Name').agg(
+    #        Population_Proportion=('Group_Size', 'sum'))
+    #group_df_p1_to_save['Population_Size'] = group_df_p1_to_save * SYNTHETIC_CITY_SIZE
+    #init_infections_p1 = 1/group_df_p1_to_save.loc['Black_Forced_Labour', 'Population_Size']
+    #group_df_p1_to_save['Initial_Infection_Rate'] = init_infections_p1
+    #group_df_p1_to_save['Initial_Infections'] = group_df_p1_to_save['Population_Size'] * group_df_p1_to_save['Initial_Infection_Rate']
+    #group_df_p1_to_save.to_csv(os.path.join(path, GROUP_SIZE_PRISON_MATRIX))
     
     # In Model Runs, will want to use contact_matrix_p1 as post-SIP matrix. After
     # 14 days (after lockdown?), will want to use Group_Size column from group_df_p1
-    write_matrices(path, group_df_p1_to_save, contact_matrix_pre_sip_final, p1_to_save)
+    write_matrices(path, group_df_to_save, contact_matrix_pre_sip_final, p1_to_save)
     
 ## Policy lever 2: Alter prison release strategy ##
 # TODO: Change number of people who are released each day who are COVID-positive
-COVID_POSITIVE_OF_CORRECTIONS = 0 # in the future, we can make this a fraction
+COVID_POSITIVE_OF_CORRECTIONS = 0 # THIS IS NOW DONE IN MODEL NOTEBOOK
 
+# DON'T KNOW IF WE NEED ANY OF THIS
 def write_matrices_p2(path):
-    contact_matrix_p2 = contact_matrix_sip
-    contact_matrix_p2[['White_Prison', 'Black_Prison']] = contact_matrix_p2[['White_Prison',
-                 'Black_Prison']]*COVID_POSITIVE_OF_CORRECTIONS
-    write_matrices(path, group_df_to_save, contact_matrix_pre_sip_final, create_final_matrix(contact_matrix_p2))
+    #contact_matrix_p2 = contact_matrix_sip
+    #contact_matrix_p2[['White_Prison', 'Black_Prison']] = contact_matrix_p2[['White_Prison',
+    #             'Black_Prison']]*COVID_POSITIVE_OF_CORRECTIONS
+    write_matrices(path, group_df_to_save, contact_matrix_pre_sip_final, contact_matrix_sip_final)
+                   #create_final_matrix(contact_matrix_p2))
     
 
 # In Model Runs, will want to use contact_matrix_p2 as post-SIP matrix; will
@@ -561,8 +582,3 @@ def write_all_matrices(BASE_PATH):
     write_matrices_p1(lever_1_dir)
     write_matrices_p2(lever_2_dir)
     return original_dir, lever_1_dir, lever_2_dir
-
-    
-
-
-

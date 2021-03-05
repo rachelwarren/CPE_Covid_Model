@@ -14,7 +14,17 @@ Returns
 an object of the class ModelParams that has attributes for each of the above
 parameters
 """
-
+class Policy2Params:
+    def __init__(self,
+                 prison_sip_i_white, prison_sip_i_black,
+                 jail_sip_i_white, jail_sip_i_black):
+#         self.jail_release_shrink = jail_release_shrink
+#         self.jail_release_date = jail_release_date,
+        self.prison_sip_i_white = prison_sip_i_white
+        self.prison_sip_i_black = prison_sip_i_black
+        self.jail_sip_i_black = jail_sip_i_black
+        self.jail_sip_i_white = jail_sip_i_white
+        
 class ModelParams:
     def __init__(self,transmission_rate, sip_start_date,initial_infection_multiplier,
                  prison_peak_date, prison_infection_rate,

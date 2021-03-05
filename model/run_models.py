@@ -116,41 +116,45 @@ def run_models(output_dir, params, days,
         
     return summary_stats_original, pd.concat(infection_rates), pd.concat(s_rates), pop_size_df
 
+
+
 # Run the policy interventions. Has if statement for both kinds of policies.
 # If the optional params are included is policy lever 1. 
 def run_policy_intervention(policy_name,
     output_dir, params, days,
     group_size_data,
     contact_data_pre_SIP, contact_data_post_SIP,
-    group_size2 = None, prison_lockdown_date = None):
+    jail_release_shrink, jail_release_date, policy2_params = None):
     
     output_name = policy_name
     output_path =os.path.join(output_dir, output_name)
-     
+    
     #get sizes and initial values     
     group_size_data = prep.process_group_size(group_size_data, params.initial_infection_multiplier)        
     pop_size = prep.combine_groups(group_size_data)
     
     pop_sizes = {}
     
-    if group_size2 is None:
+    if policy2_params == None:
         #run the original model
-        print("policy_lever_2")
-        S_df, I_df, _ = build.build_model(
-            group_size_data, days,
-            contact_data_pre_SIP.values, contact_data_post_SIP.values, params)
-    else:
         print("policy_lever_1")
         S_df, I_df, _ = build.build_model_p1(
+            group_size_data, days, params.sip_start_date,
+            contact_data_pre_SIP.values, contact_data_post_SIP.values,
+            params.transmission_rate,params.post_sip_transmission_rate, params.prison_infection_rate,
+            params.prison_peak_date, jail_release_shrink, jail_release_date)
+
+# def build_model_p1(group_size_data, TIME, SIP_DATE, contact_matrix1, contact_matrix2,
+#                 transmission_rate, post_sip_transmission_rate, prison_peak_rate, prison_peak_date, jail_release_shrink,jail_release_date):
+    else:
+        print("policy_lever_2")
+        
+# def build_model_p2(group_size_data, TIME, SIP_DATE, contact_matrix1, contact_matrix2,
+#                 transmission_rate, post_sip_transmission_rate, prison_peak_rate, prison_peak_date,
+#                 jail_release_date, policy2_params):
+        S_df, I_df, _ = build.build_model_p2(
             group_size_data, days,
-            params.sip_start_date,
-            contact_data_pre_SIP.values,
-            contact_data_post_SIP.values,
-            params.transmission_rate, params.prison_infection_rate,
-            params.prison_peak_date,
-            group_size2,
-            prison_lockdown_date,
-            params.post_sip_transmission_rate)
+            contact_data_pre_SIP.values, contact_data_post_SIP.values, params, policy2_params)
         
     pop_sizes[f'{policy_name}_original'] = pop_size
          
